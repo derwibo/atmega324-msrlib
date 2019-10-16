@@ -1,0 +1,157 @@
+/* Testprogramm
+   Ausgang PD7 wird in Abhaengigkeit von PC0 geschaltet
+   Ausgang PD6 wird in Abhaengigkeit von PC1 geschaltet
+*/
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <inttypes.h>
+
+#include "at324hw.h"
+#include "scheduler.h"
+#include "usart.h"
+#include "adc.h"
+#include "pwm.h"
+
+#define BAUDRATE 9600
+#define MYUBRR FOSC/16/BAUD-1
+
+struct uart_msg
+{
+  uint8_t id;
+  uint8_t nb;
+  uint8_t data[8];
+};
+
+typedef struct uart_msg uart_msg_t;
+
+uart_msg_t datamsg;
+
+unsigned char pwm2a;
+unsigned char pwm2b;
+
+int8_t usart0_transmit_msg(uart_msg_t* msg);
+
+void transmit_func(void)
+{
+  int8_t i;
+  uint16_t adcresult;
+
+  datamsg.id = 0x12;
+  datamsg.nb = 8;
+
+  for(i=0 ; i<8 ; i++)
+  {
+    datamsg.data[i] = 0;
+  }
+
+  datamsg.data[0] = PINC;
+
+  datamsg.data[2] = pwm2a;
+  datamsg.data[3] = pwm2b;
+
+  adcresult = adc_get(PINA0);
+  datamsg.data[4] = (uint8_t)((adcresult >> 8) & 0xFF);
+  datamsg.data[5] = (uint8_t)((adcresult) & 0xFF);
+
+  adcresult = adc_get(PINA1);
+  datamsg.data[6] = (uint8_t)((adcresult >> 8) & 0xFF);
+  datamsg.data[7] = (uint8_t)((adcresult) & 0xFF);
+
+  usart0_transmit_msg(&datamsg);
+}
+
+void input_func(void)
+{
+  pwm2a = 0;
+  pwm2b = 0;
+
+  if(PINC & (1 << PINC6))
+  {
+    pwm2b = 63;
+    datamsg.data[0] = 0xFF;
+  }
+
+  if(PINC & (1 << PINC5))
+  {
+    pwm2b = 127;
+  }
+
+  if(PINC & (1 << PINC4))
+  {
+    pwm2b = 191;
+  }
+
+  if(PINC & (1 << PINC3))
+  {
+    pwm2b = 255;
+  }
+
+  pwm_set(PWM2A, pwm2a);
+  pwm_set(PWM2B, pwm2b);
+}
+
+int main(void)
+{
+  at324_prescaler_init();
+
+  at324_init();
+
+/* CONFIGURE I/O PINS, all unused Port pins as input with pull up */
+
+  DDRA  = 0b00000000;  // PA0 - PA3 : Analogeingaenge
+  PORTA = 0b11111111;  
+
+  DDRB  = 0b00000000;
+  PORTB = 0b11111111;
+
+  DDRC  = 0b00000000;  // Digitale Eingaenge
+  PORTC = 0b00000000;  
+
+  DDRD  = 0b11000010;
+  PORTD = 0b00111100;
+
+  DIDR0  = 0b00011111;
+
+  scheduler_init();
+  usart0_init(BAUDRATE);
+  adc_init(ADC_REF_256_INT);
+  adc_enable_input(PINA0);
+  adc_enable_input(PINA1);
+
+  pwm_init();
+
+  task_create(adc_start, 1, TASK_RUNNING);
+  task_create(transmit_func, 100, TASK_RUNNING);
+  task_create(input_func, 10, TASK_RUNNING);
+
+  sei();
+
+  while(1)
+  {
+    scheduler_run();
+  }
+
+  return 0;
+}
+
+
+inline int8_t usart0_transmit_msg(uart_msg_t* msg)
+{
+  uint8_t* dataptr = (uint8_t*)msg;
+  int8_t nb = msg->nb + 2;
+  if(usart0_transmit(dataptr, nb) > 0)
+  {
+    return 1;
+  }
+  return 0;
+}
+
+
+ISR(TIMER0_OVF_vect)
+{
+
+}
+
+
+

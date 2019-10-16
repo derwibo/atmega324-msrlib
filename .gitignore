@@ -1,0 +1,12 @@
+*.o
+*.a
+*.res
+*.exe
+*.elf
+*.hex
+*.bat
+*.mk
+*.pyc
+*.pyd
+*.pdb
+
