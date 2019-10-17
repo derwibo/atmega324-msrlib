@@ -33,8 +33,6 @@ struct adc_dev
 
 typedef struct adc_dev adc_dev_t;
 
-extern adc_dev_t adc0;
-
 void adc_init(uint8_t refsrc);
 
 void adc_enable_input(uint8_t pin);

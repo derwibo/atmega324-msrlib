@@ -48,11 +48,8 @@ void transmit_func(void)
 
   datamsg.data[1] = 0;
 
-//  datamsg.data[2] = pwm2a;
-//  datamsg.data[3] = pwm2b;
-  datamsg.data[1] = adc0.mux[0];
-  datamsg.data[2] = adc0.mux[1];
-  datamsg.data[3] = adc0.mux[2];
+  datamsg.data[2] = pwm2a;
+  datamsg.data[3] = pwm2b;
 
   adcresult = adc_get(PINA0);
   datamsg.data[4] = (uint8_t)((adcresult >> 8) & 0xFF);
@@ -106,17 +103,11 @@ void input_func(void)
   pwm_set(PWM2B, pwm2b);
 }
 
+
 int main(void)
 {
   uint8_t i;
-//  at324_prescaler_init();
-
-  CLKPR = 0x80;
-  CLKPR = 0x00;
-
-  __asm__ __volatile__ ("nop");
-  __asm__ __volatile__ ("nop");
-  __asm__ __volatile__ ("nop");
+  at324_prescaler_init();
 
   at324_init();
 
