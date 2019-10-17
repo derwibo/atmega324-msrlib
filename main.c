@@ -14,7 +14,6 @@
 #include "pwm.h"
 
 #define BAUDRATE 9600
-#define MYUBRR FOSC/16/BAUD-1
 
 struct uart_msg
 {
@@ -47,8 +46,13 @@ void transmit_func(void)
 
   datamsg.data[0] = PINC;
 
-  datamsg.data[2] = pwm2a;
-  datamsg.data[3] = pwm2b;
+  datamsg.data[1] = 0;
+
+//  datamsg.data[2] = pwm2a;
+//  datamsg.data[3] = pwm2b;
+  datamsg.data[1] = adc0.mux[0];
+  datamsg.data[2] = adc0.mux[1];
+  datamsg.data[3] = adc0.mux[2];
 
   adcresult = adc_get(PINA0);
   datamsg.data[4] = (uint8_t)((adcresult >> 8) & 0xFF);
@@ -61,6 +65,18 @@ void transmit_func(void)
   usart0_transmit_msg(&datamsg);
 }
 
+void blink_func(void)
+{
+  if(PORTD & (1<<PORTD5))
+  {
+    PORTD &= ~(1<<PORTD5);
+  }
+  else
+  {
+    PORTD |= (1<<PORTD5);
+  }
+}
+
 void input_func(void)
 {
   pwm2a = 0;
@@ -69,7 +85,6 @@ void input_func(void)
   if(PINC & (1 << PINC6))
   {
     pwm2b = 63;
-    datamsg.data[0] = 0xFF;
   }
 
   if(PINC & (1 << PINC5))
@@ -93,14 +108,23 @@ void input_func(void)
 
 int main(void)
 {
-  at324_prescaler_init();
+  uint8_t i;
+//  at324_prescaler_init();
+
+  CLKPR = 0x80;
+  CLKPR = 0x00;
+
+  __asm__ __volatile__ ("nop");
+  __asm__ __volatile__ ("nop");
+  __asm__ __volatile__ ("nop");
 
   at324_init();
 
 /* CONFIGURE I/O PINS, all unused Port pins as input with pull up */
 
   DDRA  = 0b00000000;  // PA0 - PA3 : Analogeingaenge
-  PORTA = 0b11111111;  
+//  PORTA = 0b11111111;
+  PORTA = 0b00000000;  
 
   DDRB  = 0b00000000;
   PORTB = 0b11111111;
@@ -108,21 +132,23 @@ int main(void)
   DDRC  = 0b00000000;  // Digitale Eingaenge
   PORTC = 0b00000000;  
 
-  DDRD  = 0b11000010;
-  PORTD = 0b00111100;
+  DDRD  = 0b11100010;
+  PORTD = 0b00011100;
 
-  DIDR0  = 0b00011111;
+  DIDR0 = 0b11111111;
 
   scheduler_init();
   usart0_init(BAUDRATE);
-  adc_init(ADC_REF_256_INT);
+
+  adc_init(ADC_REF_AVCC);
   adc_enable_input(PINA0);
   adc_enable_input(PINA1);
 
   pwm_init();
 
-  task_create(adc_start, 1, TASK_RUNNING);
-  task_create(transmit_func, 100, TASK_RUNNING);
+  task_create(adc_start, 100, TASK_RUNNING);
+  task_create(transmit_func, 1000, TASK_RUNNING);
+  task_create(blink_func, 500, TASK_RUNNING);
   task_create(input_func, 10, TASK_RUNNING);
 
   sei();

@@ -19,7 +19,7 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
-#define MAX_NR_TASKS 32
+#define MAX_NR_TASKS 16
 
 #define TASK_STOPPED 0
 #define TASK_RUNNING 1
@@ -34,7 +34,7 @@ typedef struct systemtime systemtime_t;
 struct task
 {
   uint8_t state;
-  uint8_t rate;
+  uint16_t rate;
   volatile int16_t counter;
   void (*func)(void);
 };
@@ -44,10 +44,12 @@ typedef struct task task_t;
 void scheduler_init(void);
 void scheduler_run(void);
 
-int8_t task_create(void (*func)(void), uint8_t rate, uint8_t state);
+int8_t task_create(void (*func)(void), uint16_t rate, uint8_t state);
 void task_start(uint8_t tasknr);
 void task_stop(uint8_t tasknr);
 
+uint16_t systime_get();
+void systime_reset();
 
 #endif /* SCHEDULER_H */
 

@@ -21,15 +21,21 @@
 
 #include <inttypes.h>
 
-#define USART_TX_BUFFER_SIZE 0x0F
+#define USART_TX_BUFFER_SIZE 16
+#define USART_TX_BUFFER_MASK (USART_TX_BUFFER_SIZE-1)
+#define USART_RX_BUFFER_SIZE 16
+#define USART_RX_BUFFER_MASK (USART_RX_BUFFER_SIZE-1)
 
 struct usart_dev
 {
   uint16_t baudrate;
   volatile uint8_t status;
-  volatile uint8_t tx_buffer[USART_TX_BUFFER_SIZE+1];
+  volatile uint8_t tx_buffer[USART_TX_BUFFER_SIZE];
   volatile int8_t tx_datastart;
   volatile int8_t tx_dataend;
+  volatile uint8_t rx_buffer[USART_RX_BUFFER_SIZE];
+  volatile int8_t rx_datastart;
+  volatile int8_t rx_dataend;
 };
 
 typedef struct usart_dev usart_dev_t;

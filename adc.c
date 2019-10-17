@@ -26,6 +26,16 @@ adc_dev_t adc0;
 
 void adc_init(uint8_t refsrc)
 {
+  uint8_t i;
+
+  adc0.enabled = 0;
+  for(i=0; i<8; i++)
+  {
+    adc0.result[i] = 0;
+    adc0.mux[i] = i;
+  }
+  adc0.curchn = 0;
+
   switch(refsrc)
   {
     case ADC_REF_256_INT:
@@ -45,7 +55,6 @@ void adc_init(uint8_t refsrc)
   ADCSRB = 0x00;
  
   ADMUX  = adc0.refsrc;
-  adc0.curchn = 0;
 }
 
 void adc_enable_input(uint8_t pin)
@@ -73,6 +82,7 @@ void adc_set_input(uint8_t pin, uint8_t state)
       case PINA6:
       case PINA7:
         adc_set_mux(pin, pin);
+        adc0.enabled |= (1 << pin);
         DIDR0 |= (1 << pin);
         break;
       default:
@@ -91,7 +101,7 @@ void adc_set_input(uint8_t pin, uint8_t state)
       case PINA5:
       case PINA6:
       case PINA7:
-        adc_set_mux(pin, 0x0);
+        adc0.enabled &= ~(1 << pin);
         DIDR0 &= ~(1 << pin);
         break;
       default:
@@ -102,19 +112,22 @@ void adc_set_input(uint8_t pin, uint8_t state)
 
 void adc_set_mux(uint8_t channel, uint8_t mux)
 {
-  if(channel >= 8) return;
-    adc0.mux[channel] = mux;
+  if(channel < 8)
+  {
+    adc0.mux[channel] = mux & 0b11111;
+  }
 }
 
 void adc_start()
 {
   adc0.curchn = 0;  
-  while(adc0.curchn <= 8)
+  while(adc0.curchn < 8)
   {
-    if(adc0.mux[adc0.curchn] != 0)
+    if(adc0.enabled & (1 << adc0.curchn))
     {
       // Start the first conversion 
       ADMUX  = adc0.refsrc | adc0.mux[adc0.curchn];
+      ADMUX  = adc0.refsrc;
       ADCSRA |= (1 << ADSC);
       break;
     }
@@ -135,17 +148,18 @@ uint16_t adc_get(uint8_t index)
 
 ISR(ADC_vect)
 {
-  adc0.result[adc0.curchn] = ADC;
+  uint16_t result = ADC;
+  adc0.result[adc0.curchn] = result;
   do{
     adc0.curchn++;
-    if(adc0.mux[adc0.curchn] != 0)
+    if(adc0.enabled & (1 << adc0.curchn))
     {
       // Start the next conversion 
       ADMUX  = adc0.refsrc | adc0.mux[adc0.curchn];
       ADCSRA |= (1 << ADSC);
       break;
     }
-  } while(adc0.curchn <= 8);
+  } while(adc0.curchn < 8);
 }
 
 

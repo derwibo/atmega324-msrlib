@@ -27,6 +27,17 @@ systemtime_t systime;
 
 task_t tasktable[MAX_NR_TASKS];
 
+uint16_t systime_get()
+{
+  return systime.ticks;
+}
+
+void systime_reset()
+{
+  cli();
+  systime.ticks = 0;
+  sei();
+}
 
 void scheduler_init(void)
 {
@@ -64,7 +75,7 @@ void scheduler_run(void)
   }
 }
 
-int8_t task_create(void (*func)(void), uint8_t rate, uint8_t state)
+int8_t task_create(void (*func)(void), uint16_t rate, uint8_t state)
 {
   int8_t i;
 
@@ -77,10 +88,10 @@ int8_t task_create(void (*func)(void), uint8_t rate, uint8_t state)
       tasktable[i].rate = (rate > 0 ? rate : 1);
       tasktable[i].counter = 0;
       tasktable[i].state = state;
+      return i;
     }
   }
-  if(i == MAX_NR_TASKS) return -1;
-  return i;
+  return -1;
 }
 
 void task_start(uint8_t tasknr)
@@ -108,8 +119,7 @@ ISR(TIMER1_COMPA_vect)
   for(i=0; i<MAX_NR_TASKS; i++)
   {
     tasktable[i].counter--;
-  }
-  
+  }  
 }
 
 ISR(TIMER1_OVF_vect)
