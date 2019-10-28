@@ -15,9 +15,12 @@
 DEVICE     = atmega324pa
 CLOCK      = 8000000
 PROGRAMMER = -c stk500v2 -P /dev/ttyUSB0 
-OBJECTS    = main.o at324hw.o scheduler.o pwm.o adc.o usart.o
+OBJECTS    = main.o
+LIBOBJECTS = at324hw.o scheduler.o pwm.o adc.o usart.o pcint2.o
 FUSES      = -U lfuse:w:0x62:m -U hfuse:w:0xd9:m -U efuse:w:0xff:m
-
+ARFLAGS    = -r
+AR         = avr-ar
+RANLIB     = avr-ranlib
 
 ######################################################################
 ######################################################################
@@ -28,7 +31,7 @@ AVRDUDE = avrdude $(PROGRAMMER) -p m324pa
 COMPILE = avr-gcc -g -Wall -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE)
 
 # symbolic targets:
-all:	main.hex
+all:	main.hex libmsr.a
 
 .c.o:
 	$(COMPILE) -c $< -o $@
@@ -56,17 +59,22 @@ load: all
 	bootloadHID main.hex
 
 clean:
-	rm -f main.hex main.elf $(OBJECTS)
+	rm -f main.hex main.elf $(OBJECTS) $(LIBOBJECTS)
 
 # file targets:
-main.elf: $(OBJECTS)
-	$(COMPILE) -o main.elf $(OBJECTS)
+main.elf: $(OBJECTS) $(LIBOBJECTS)
+	$(COMPILE) -o main.elf $(OBJECTS) $(LIBOBJECTS)
 
 main.hex: main.elf
 	rm -f main.hex
 	avr-objcopy -j .text -j .data -O ihex main.elf main.hex
 # If you have an EEPROM section, you must also create a hex file for the
 # EEPROM and add it to the "flash" target.
+
+libmsr.a: $(LIBOBJECTS)
+	-rm -f $@
+	$(AR) $(ARFLAGS) $@ $(LIBOBJECTS)
+	$(RANLIB) $@
 
 # Targets for code debugging and analysis:
 disasm:	main.elf
